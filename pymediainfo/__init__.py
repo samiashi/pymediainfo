@@ -201,7 +201,8 @@ class MediaInfo(object):
                 lib.MediaInfo_Close.argtypes = [ctypes.c_void_p]
                 lib.MediaInfo_Close.restype = None
                 # Obtain the library version
-                lib_version_str = lib.MediaInfo_Option(None, "Info_Version", "")
+                handle = lib.MediaInfo_New()
+                lib_version_str = lib.MediaInfo_Option(handle, "Info_Version", "")
                 lib_version_str = re.search(r"^MediaInfoLib - v(\S+)", lib_version_str).group(1)
                 lib_version = tuple(int(_) for _ in lib_version_str.split("."))
                 return (lib, lib_version_str, lib_version)
