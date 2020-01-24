@@ -1,13 +1,14 @@
 # vim: set fileencoding=utf-8 :
+import ctypes
+import json
+import locale
 import os
 import re
-import locale
-import json
-import ctypes
 import sys
 import warnings
-from pkg_resources import get_distribution, DistributionNotFound
 import xml.etree.ElementTree as ET
+
+from pkg_resources import get_distribution, DistributionNotFound
 
 try:
     import pathlib
@@ -23,6 +24,7 @@ try:
     __version__ = get_distribution("pymediainfo").version
 except DistributionNotFound:
     pass
+
 
 class Track(object):
     """
@@ -49,18 +51,23 @@ class Track(object):
 
     All available attributes can be obtained by calling :func:`to_data`.
     """
+
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
+
     def __getattribute__(self, name):
         try:
             return object.__getattribute__(self, name)
         except:
             pass
         return None
+
     def __getstate__(self):
         return self.__dict__
+
     def __setstate__(self, state):
         self.__dict__ = state
+
     def __init__(self, xml_dom_fragment):
         self.track_type = xml_dom_fragment.attrib['type']
         for el in xml_dom_fragment:
@@ -90,8 +97,10 @@ class Track(object):
                         break
                     except:
                         pass
+
     def __repr__(self):
-        return("<Track track_id='{}', track_type='{}'>".format(self.track_id, self.track_type))
+        return "<Track track_id='{}', track_type='{}'>".format(self.track_id, self.track_type)
+
     def to_data(self):
         """
         Returns a dict representation of the track attributes.
@@ -145,8 +154,10 @@ class MediaInfo(object):
         <Track track_id='None', track_type='General'>
         <Track track_id='1', track_type='Text'>
     """
+
     def __eq__(self, other):
         return self.tracks == other.tracks
+
     def __init__(self, xml, encoding_errors="strict"):
         xml_dom = ET.fromstring(xml.encode("utf-8", encoding_errors))
         self.tracks = []
@@ -159,6 +170,7 @@ class MediaInfo(object):
             xpath = "File/track"
         for xml_track in xml_dom.iterfind(xpath):
             self.tracks.append(Track(xml_track))
+
     @staticmethod
     def _get_library(library_file=None):
         os_is_nt = os.name in ("nt", "dos", "os2", "ce")
@@ -189,7 +201,7 @@ class MediaInfo(object):
                 # Define arguments and return types
                 lib.MediaInfo_Inform.restype = ctypes.c_wchar_p
                 lib.MediaInfo_New.argtypes = []
-                lib.MediaInfo_New.restype  = ctypes.c_void_p
+                lib.MediaInfo_New.restype = ctypes.c_void_p
                 lib.MediaInfo_Option.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p, ctypes.c_wchar_p]
                 lib.MediaInfo_Option.restype = ctypes.c_wchar_p
                 lib.MediaInfo_Inform.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
@@ -197,18 +209,19 @@ class MediaInfo(object):
                 lib.MediaInfo_Open.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p]
                 lib.MediaInfo_Open.restype = ctypes.c_size_t
                 lib.MediaInfo_Delete.argtypes = [ctypes.c_void_p]
-                lib.MediaInfo_Delete.restype  = None
+                lib.MediaInfo_Delete.restype = None
                 lib.MediaInfo_Close.argtypes = [ctypes.c_void_p]
                 lib.MediaInfo_Close.restype = None
                 # Obtain the library version
                 lib_version_str = lib.MediaInfo_Option(None, "Info_Version", "")
                 lib_version_str = re.search(r"^MediaInfoLib - v(\S+)", lib_version_str).group(1)
                 lib_version = tuple(int(_) for _ in lib_version_str.split("."))
-                return (lib, lib_version_str, lib_version)
+                return lib, lib_version_str, lib_version
             except OSError:
                 # If we've tried all possible filenames
                 if i == len(library_names):
                     raise
+
     @classmethod
     def can_parse(cls, library_file=None):
         """
@@ -221,10 +234,10 @@ class MediaInfo(object):
             return True
         except:
             return False
+
     @classmethod
-    def parse(cls, filename, library_file=None, cover_data=False,
-            encoding_errors="strict", parse_speed=0.5, text=False,
-            full=True, legacy_stream_display=False, mediainfo_options=None):
+    def parse(cls, filename, library_file=None, cover_data=False, encoding_errors="strict", parse_speed=0.5, text=False,
+              full=True, legacy_stream_display=False, mediainfo_options=None):
         """
         Analyze a media file using libmediainfo.
         If libmediainfo is located in a non-standard location, the `library_file` parameter can be used:
@@ -296,16 +309,16 @@ class MediaInfo(object):
         lib.MediaInfo_Option(handle, "LegacyStreamDisplay", "1" if legacy_stream_display else "")
         if mediainfo_options is not None:
             if lib_version < (19, 9):
-                warnings.warn("This version of MediaInfo ({}) does not support resetting all options to their default values, "
+                warnings.warn(
+                    "This version of MediaInfo ({}) does not support resetting all options to their default values, "
                     "passing it custom options is not recommended and may result in unpredictable behavior, "
                     "see https://github.com/MediaArea/MediaInfoLib/issues/1128".format(lib_version_str),
                     RuntimeWarning
-                )
+                    )
             for option_name, option_value in mediainfo_options.items():
                 lib.MediaInfo_Option(handle, option_name, option_value)
         if lib.MediaInfo_Open(handle, filename) == 0:
-            raise RuntimeError("An eror occured while opening {}"
-                    " with libmediainfo".format(filename))
+            raise RuntimeError("An eror occured while opening {} with libmediainfo".format(filename))
         output = lib.MediaInfo_Inform(handle, 0)
         # Reset all options to their defaults so that they aren't
         # retained when the parse method is called several times
@@ -319,6 +332,7 @@ class MediaInfo(object):
             return output
         else:
             return cls(output, encoding_errors)
+
     def to_data(self):
         """
         Returns a dict representation of the object's :py:class:`Tracks <Track>`.
@@ -329,6 +343,7 @@ class MediaInfo(object):
         for track in self.tracks:
             data['tracks'].append(track.to_data())
         return data
+
     def to_json(self):
         """
         Returns a JSON representation of the object's :py:class:`Tracks <Track>`.
